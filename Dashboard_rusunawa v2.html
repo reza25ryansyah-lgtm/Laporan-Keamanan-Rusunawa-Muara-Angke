@@ -1,0 +1,1380 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Laporan Petugas Keamanan - Muara Angke</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <!-- Tambahan Library HTML2PDF untuk Export ke PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        
+        /* Custom scrollbar for better appearance */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b; 
+        }
+    </style>
+</head>
+<body class="bg-slate-900 min-h-screen text-slate-100 transition-all duration-300">
+
+    <!-- NOTIFIKASI TOAST CUSTOM (Pengganti alert) -->
+    <div id="toastMessage" class="fixed top-5 right-5 z-50 transform translate-y-[-150%] transition-transform duration-300 bg-slate-800 border-l-4 border-emerald-500 text-white p-4 rounded-xl shadow-2xl flex items-center gap-3">
+        <span id="toastIcon" class="text-emerald-500 text-lg"><i class="fas fa-check-circle"></i></span>
+        <span id="toastText" class="text-sm font-semibold">Berhasil masuk sistem!</span>
+    </div>
+
+    <!-- MODAL ARAHAN ATASAN -->
+    <div id="modalOverlay" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm hidden z-40 transition-opacity duration-300 opacity-0"></div>
+    <div id="modalArahan" class="fixed inset-0 hidden flex items-center justify-center z-50 p-4">
+        <div id="modalContent" class="bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-md transform scale-95 opacity-0 transition-all duration-300 flex flex-col overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-700 flex justify-between items-center bg-slate-800">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-indigo-500/10 text-indigo-400 flex items-center justify-center shadow-inner">
+                        <i class="fas fa-user-tie text-lg"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-lg text-slate-100 leading-tight">Instruksi Pimpinan</h3>
+                        <p class="text-xs text-slate-400">Verifikasi & Pengendalian Giat</p>
+                    </div>
+                </div>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-red-400 w-8 h-8 rounded-full flex items-center justify-center transition-colors">
+                    <i class="fas fa-times text-lg"></i>
+                </button>
+            </div>
+            <div class="p-6 bg-slate-900/50">
+                <input type="hidden" id="activeReportId" value="">
+                <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Instruksi / Arahan Tindakan</label>
+                <textarea id="inputArahan" class="w-full p-4 border border-slate-700 rounded-xl bg-slate-950 text-slate-100 placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 outline-none transition resize-none" rows="4" placeholder="Ketik instruksi penertiban atau tindak lanjut lapangan..."></textarea>
+            </div>
+            <div class="px-6 py-4 border-t border-slate-700 flex justify-end gap-3 bg-slate-800">
+                <button onclick="closeModal()" class="px-5 py-2.5 text-xs font-semibold text-slate-300 hover:bg-slate-700 rounded-xl transition-colors">Batal</button>
+                <button onclick="saveArahan()" class="px-5 py-2.5 text-xs font-bold bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all flex items-center gap-2">
+                    <i class="fas fa-paper-plane"></i> Kirim Arahan
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL TINDAK LANJUT PETUGAS (FOTO AFTER) -->
+    <div id="modalTindakLanjutOverlay" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm hidden z-40 transition-opacity duration-300 opacity-0"></div>
+    <div id="modalTindakLanjut" class="fixed inset-0 hidden flex items-center justify-center z-50 p-4">
+        <div id="modalTindakLanjutContent" class="bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-md transform scale-95 opacity-0 transition-all duration-300 flex flex-col overflow-hidden max-h-[90vh]">
+            <div class="px-6 py-4 border-b border-slate-700 flex justify-between items-center bg-slate-800">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center shadow-inner">
+                        <i class="fas fa-clipboard-check text-lg"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-lg text-slate-100 leading-tight">Tindak Lanjut Giat</h3>
+                        <p class="text-xs text-slate-400">Penyelesaian & Foto After</p>
+                    </div>
+                </div>
+                <button onclick="closeTindakLanjutModal()" class="text-slate-400 hover:text-red-400 w-8 h-8 rounded-full flex items-center justify-center transition-colors">
+                    <i class="fas fa-times text-lg"></i>
+                </button>
+            </div>
+            <div class="p-6 bg-slate-900/50 overflow-y-auto">
+                <input type="hidden" id="tlReportId" value="">
+                
+                <div class="mb-4">
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Update Status Lapangan</label>
+                    <select id="tlStatusInput" class="w-full p-3 bg-slate-950 border border-slate-700 rounded-xl text-emerald-400 font-bold focus:ring-2 focus:ring-emerald-500 outline-none transition cursor-pointer">
+                        <option value="Selesai">Selesai (Ditangani)</option>
+                        <option value="Dalam Proses">Masih Dalam Proses</option>
+                        <option value="Butuh Eskalasi">Butuh Eskalasi Pimpinan</option>
+                    </select>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Unggah Foto After (Penyelesaian)</label>
+                    <input type="file" id="fotoFileAfter" accept="image/*" class="hidden" onchange="handleFileSelectAfter(event)">
+                    <div id="dropzoneAfter" onclick="document.getElementById('fotoFileAfter').click()" class="w-full p-4 border-2 border-dashed border-slate-700 rounded-lg bg-slate-950 text-center text-slate-400 text-xs cursor-pointer hover:bg-slate-800 hover:border-emerald-500 transition flex flex-col items-center justify-center gap-2">
+                        <i class="fas fa-camera-retro text-2xl text-slate-500"></i>
+                        <span>Pilih/Ambil Foto Bukti Penanganan</span>
+                    </div>
+                    <div id="previewContainerAfter" class="hidden mt-2 relative rounded-lg overflow-hidden border border-slate-700 shadow-md">
+                        <img id="imagePreviewAfter" src="" alt="Pratinjau After" class="w-full h-32 object-cover">
+                        <button type="button" onclick="removeUploadedFileAfter(event)" class="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white w-6 h-6 rounded-full flex items-center justify-center transition-colors shadow-md">
+                            <i class="fas fa-times text-xs"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Catatan Tindak Lanjut</label>
+                    <textarea id="tlCatatanInput" class="w-full p-4 border border-slate-700 rounded-xl bg-slate-950 text-slate-100 placeholder-slate-500 focus:ring-2 focus:ring-emerald-500 outline-none transition resize-none" rows="3" placeholder="Jelaskan tindakan yang sudah dilakukan..."></textarea>
+                </div>
+            </div>
+            <div class="px-6 py-4 border-t border-slate-700 flex justify-end gap-3 bg-slate-800">
+                <button onclick="closeTindakLanjutModal()" class="px-5 py-2.5 text-xs font-semibold text-slate-300 hover:bg-slate-700 rounded-xl transition-colors">Batal</button>
+                <button onclick="saveTindakLanjut()" class="px-5 py-2.5 text-xs font-bold bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all flex items-center gap-2">
+                    <i class="fas fa-check-double"></i> Simpan Penanganan
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- LIGHTBOX ZOOM FOTO -->
+    <div id="lightboxModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+        <div class="relative max-w-3xl w-full flex flex-col items-center">
+            <button onclick="closeLightbox()" class="absolute -top-12 right-0 text-white hover:text-red-400 text-3xl transition-colors">
+                <i class="fas fa-times-circle"></i>
+            </button>
+            <img id="lightboxImage" src="" alt="Zoom Bukti" class="max-h-[80vh] w-auto max-w-full rounded-xl shadow-2xl border border-white/10 object-contain">
+        </div>
+    </div>
+
+    <!-- ================== VIEW 1: LAYER LOGIN ================== -->
+    <section id="loginView" class="min-h-screen flex items-center justify-center p-6">
+        <div class="bg-slate-800 border border-slate-700 p-8 rounded-3xl shadow-2xl max-w-md w-full relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"></div>
+            
+            <div class="text-center mb-8">
+                <div class="w-16 h-16 bg-indigo-500/10 text-indigo-400 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-indigo-500/20 shadow-lg">
+                    <i class="fas fa-shield-alt text-3xl"></i>
+                </div>
+                <h2 class="text-2xl font-black tracking-tight text-white">SISTEM MASUK</h2>
+                <p class="text-xs text-slate-400 mt-2">Sistem Laporan Petugas Keamanan - Muara Angke</p>
+            </div>
+
+            <form id="loginForm" class="space-y-5" onsubmit="handleLogin(event)">
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Pilih Peran Anda</label>
+                    <select id="loginRole" class="w-full p-3 bg-slate-900 border border-slate-700 rounded-xl text-slate-200 font-semibold focus:ring-2 focus:ring-indigo-500 outline-none transition cursor-pointer">
+                        <option value="petugas">Petugas Lapangan (Input Giat)</option>
+                        <option value="pimpinan">Pimpinan / Editor (Monitoring & Arahan)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Kata Sandi Akses</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500"><i class="fas fa-lock"></i></div>
+                        <input type="password" id="loginPassword" placeholder="••••••••" class="w-full pl-10 p-3 bg-slate-900 border border-slate-700 rounded-xl text-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition" required>
+                    </div>
+                </div>
+                <div class="pt-2">
+                    <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 rounded-xl font-bold text-sm tracking-wide transition shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-2">
+                        <i class="fas fa-sign-in-alt"></i> Autentikasi Masuk
+                    </button>
+                </div>
+            </form>
+            <div class="mt-6 text-center text-[10px] text-slate-500 border-t border-slate-700/50 pt-4">
+                SIRA-MA © 2026 - Otoritas Keamanan Kawasan
+            </div>
+        </div>
+    </section>
+
+    <!-- ================== NAV BAR (Tampil setelah login) ================== -->
+    <header id="appHeader" class="bg-slate-800/80 backdrop-blur-md border-b border-slate-700/80 text-white p-5 sticky top-0 z-30 shadow-xl hidden">
+        <div class="container mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 bg-indigo-500/20 border border-indigo-500/30 rounded-xl flex items-center justify-center text-indigo-400 shadow-inner">
+                    <i class="fas fa-shield-alt text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-black tracking-wider text-slate-100 uppercase">SISTEM KEAMANAN MUARA ANGKE</h1>
+                    <p class="text-xs text-indigo-400 font-medium">Dashboard Pemantauan & Eskalasi Laporan</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <div id="userBadge" class="bg-indigo-500/10 border border-indigo-500/30 px-3.5 py-1.5 rounded-lg text-xs font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-2">
+                    <i class="fas fa-user-circle"></i> <span id="userRoleText">User</span>
+                </div>
+                <button onclick="handleLogout()" class="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5">
+                    <i class="fas fa-sign-out-alt"></i> Keluar
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ================== VIEW 2: FORM PETUGAS (HP VIEW) ================== -->
+    <section id="petugasView" class="container mx-auto p-6 max-w-md hidden mb-10">
+        <div class="bg-slate-800 border border-slate-700 p-6 rounded-2xl shadow-xl space-y-6">
+            <div class="flex items-center gap-3 border-b border-slate-700 pb-4">
+                <div class="w-10 h-10 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+                    <i class="fas fa-file-invoice text-xl"></i>
+                </div>
+                <div>
+                    <h2 class="text-lg font-bold text-slate-100">Buat Laporan Giat</h2>
+                    <p class="text-xs text-slate-400">Silakan input temuan patroli Anda</p>
+                </div>
+            </div>
+            
+            <form id="reportForm" class="space-y-4" onsubmit="handleFormSubmit(event)">
+                <!-- Petugas -->
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1">Nama Petugas Piket</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500"><i class="fas fa-user-shield"></i></div>
+                        <input type="text" id="petugasInput" placeholder="Cth: Ahmad Setiawan" class="w-full pl-10 p-2.5 text-sm bg-slate-900 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 outline-none transition" required>
+                    </div>
+                </div>
+                
+                <!-- Kategori -->
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1">Kategori Kegiatan / Temuan</label>
+                    <select id="kategoriInput" class="w-full p-2.5 text-sm bg-slate-900 border border-slate-700 rounded-lg text-slate-200 font-semibold focus:ring-2 focus:ring-indigo-500 outline-none transition cursor-pointer">
+                        <option value="Pekerjaan Rutin">Pekerjaan Rutin</option>
+                        <option value="Pelanggaran">Pelanggaran</option>
+                        <option value="Pendataan">Pendataan</option>
+                        <option value="Pengawasan">Pengawasan</option>
+                        <option value="Pengendalian">Pengendalian</option>
+                        <option value="Penertiban">Penertiban</option>
+                        <option value="Aduan Warga">Aduan Warga</option>
+                    </select>
+                </div>
+
+                <!-- Lokasi & Status -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1">Blok / Lantai</label>
+                        <input type="text" id="lokasiInput" placeholder="Cth: Blok B" class="w-full p-2.5 text-sm bg-slate-900 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 outline-none transition" required>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1">Status Lapangan</label>
+                        <select id="statusGiatInput" class="w-full p-2.5 text-sm bg-slate-900 border border-slate-700 rounded-lg text-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition cursor-pointer">
+                            <option value="Selesai">Selesai</option>
+                            <option value="Dalam Proses">Dalam Proses</option>
+                            <option value="Butuh Eskalasi">Butuh Eskalasi</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Kronologi -->
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1">Detail Kejadian (Kronologi)</label>
+                    <textarea id="kronologiInput" placeholder="Sebutkan temuan Anda di lapangan..." class="w-full p-3 text-sm bg-slate-900 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:ring-2 focus:ring-indigo-500 outline-none transition resize-none" rows="3" required></textarea>
+                </div>
+
+                <!-- Upload Bukti Foto -->
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1">Lampiran Bukti Foto</label>
+                    <input type="file" id="fotoFile" accept="image/*" class="hidden" onchange="handleFileSelect(event)">
+                    <div id="dropzone" onclick="document.getElementById('fotoFile').click()" class="w-full p-4 border-2 border-dashed border-slate-700 rounded-lg bg-slate-900 text-center text-slate-400 text-xs cursor-pointer hover:bg-slate-700 hover:border-indigo-500 transition flex flex-col items-center justify-center gap-1">
+                        <i class="fas fa-camera text-xl text-slate-500"></i>
+                        <span id="uploadLabel">Pilih atau Ambil Foto Lapangan</span>
+                    </div>
+                    <div id="previewContainer" class="hidden mt-2 relative rounded-lg overflow-hidden border border-slate-700">
+                        <img id="imagePreview" src="" alt="Pratinjau" class="w-full h-32 object-cover">
+                        <button type="button" onclick="removeUploadedFile(event)" class="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white w-6 h-6 rounded-full flex items-center justify-center transition-colors shadow-md">
+                            <i class="fas fa-times text-xs"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <button type="submit" class="w-full mt-2 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white py-3 rounded-xl shadow-lg transition-all font-bold text-sm flex items-center justify-center gap-2">
+                    <i class="fas fa-paper-plane"></i> Kirim Laporan Giat
+                </button>
+            </form>
+        </div>
+
+        <!-- DAFTAR TINDAK LANJUT PETUGAS -->
+        <div class="mt-6 bg-slate-800 border border-slate-700 rounded-2xl shadow-xl overflow-hidden">
+            <div class="p-4 bg-slate-900/50 border-b border-slate-700 flex items-center justify-between">
+                <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+                    <i class="fas fa-tasks text-amber-400"></i> Menunggu Tindak Lanjut
+                </h3>
+                <span id="badgeActiveReports" class="bg-amber-500/20 text-amber-400 text-[10px] px-2 py-0.5 rounded-full font-bold">0</span>
+            </div>
+            <div id="petugasActiveReports" class="p-4 space-y-3 max-h-[400px] overflow-y-auto">
+                <!-- Diisi via JS -->
+            </div>
+        </div>
+    </section>
+
+    <!-- ================== VIEW 3: DASHBOARD UTAMA (PIMPINAN VIEW) ================== -->
+    <main id="pimpinanView" class="container mx-auto p-6 space-y-6 hidden mb-10">
+        
+        <!-- Widget Statistik Atas -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Total Laporan -->
+            <div class="bg-slate-800 border border-slate-700 p-6 rounded-2xl shadow-sm relative overflow-hidden flex items-center justify-between">
+                <div>
+                    <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">Total Laporan Masuk</p>
+                    <h3 class="text-5xl font-black text-slate-100 leading-none" id="totalCount">0</h3>
+                </div>
+                <div class="text-indigo-400 bg-indigo-500/10 w-14 h-14 rounded-2xl flex items-center justify-center border border-indigo-500/20 shadow-md">
+                    <i class="fas fa-folder-open text-2xl"></i>
+                </div>
+            </div>
+            
+            <!-- Distribusi Urgensi Laporan -->
+            <div class="bg-slate-800 border border-slate-700 p-6 rounded-2xl shadow-sm col-span-2 flex flex-col justify-between gap-4">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wide">Aktivitas Berdasarkan Penggolongan</h3>
+                    <span class="text-[10px] bg-slate-900 text-slate-400 px-2 py-1 rounded font-bold border border-slate-700">Real-time</span>
+                </div>
+                <div id="chartContainer" class="flex items-end h-16 gap-4 bg-slate-950 p-3 rounded-xl border border-slate-700 w-full">
+                    <div class="w-full flex flex-col justify-end items-center group relative">
+                        <span id="label-Rutin" class="absolute -top-6 text-[10px] font-bold text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity">0</span>
+                        <div id="bar-Rutin" class="w-full bg-blue-500 h-[10px] rounded-t-md transition-all duration-500" title="Rutin / Pengawasan"></div>
+                    </div>
+                    <div class="w-full flex flex-col justify-end items-center group relative">
+                         <span id="label-Pelanggaran" class="absolute -top-6 text-[10px] font-bold text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">0</span>
+                        <div id="bar-Pelanggaran" class="w-full bg-red-500 h-[10px] rounded-t-md transition-all duration-500" title="Penertiban / Pelanggaran"></div>
+                    </div>
+                    <div class="w-full flex flex-col justify-end items-center group relative">
+                         <span id="label-Aduan" class="absolute -top-6 text-[10px] font-bold text-amber-400 opacity-0 group-hover:opacity-100 transition-opacity">0</span>
+                        <div id="bar-Aduan" class="w-full bg-amber-400 h-[10px] rounded-t-md transition-all duration-500" title="Lainnya"></div>
+                    </div>
+                </div>
+                <div class="flex justify-between text-[10px] font-bold text-slate-400 uppercase text-center">
+                    <span class="w-1/3">Rutin/Pengawasan</span>
+                    <span class="w-1/3">Pelanggaran/Penertiban</span>
+                    <span class="w-1/3">Lainnya</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabel Log Data & Filter Pencarian -->
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl shadow-sm overflow-hidden">
+            <!-- Filter Pencarian Tanggal -->
+            <div class="p-4 bg-slate-800/50 border-b border-slate-700/80 flex flex-col md:flex-row gap-3 items-center justify-between">
+                <div class="flex flex-wrap items-center gap-2">
+                    <div class="flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 shadow-sm">
+                        <span class="text-xs text-slate-400 font-bold uppercase">Status:</span>
+                        <select id="filterStatusVal" onchange="applyFilters()" class="bg-transparent text-xs font-semibold text-slate-200 outline-none cursor-pointer [color-scheme:dark]">
+                            <option value="Semua">Semua Status</option>
+                            <option value="Selesai">Selesai</option>
+                            <option value="Dalam Proses">Dalam Proses</option>
+                            <option value="Butuh Eskalasi">Butuh Eskalasi</option>
+                        </select>
+                    </div>
+                    <div class="flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 shadow-sm">
+                        <span class="text-xs text-slate-400 font-bold uppercase">Mulai:</span>
+                        <input type="date" id="filterStartDate" onchange="applyFilters()" class="bg-transparent text-xs font-semibold text-slate-200 outline-none cursor-pointer [color-scheme:dark]">
+                    </div>
+                    <div class="flex items-center gap-2 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 shadow-sm">
+                        <span class="text-xs text-slate-400 font-bold uppercase">Selesai:</span>
+                        <input type="date" id="filterEndDate" onchange="applyFilters()" class="bg-transparent text-xs font-semibold text-slate-200 outline-none cursor-pointer [color-scheme:dark]">
+                    </div>
+                    <button onclick="clearDateFilters()" class="text-xs text-slate-400 hover:text-red-400 font-bold transition px-1">
+                        Reset
+                    </button>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+                    <button onclick="exportCSVWithDateFilter()" class="w-full sm:w-auto text-[11px] font-bold bg-slate-700 text-white px-4 py-2.5 rounded-lg hover:bg-slate-600 transition shadow-sm flex items-center justify-center gap-2">
+                        <i class="fas fa-file-csv"></i> Unduh CSV
+                    </button>
+                    <button onclick="exportPDFWithDateFilter()" class="w-full sm:w-auto text-[11px] font-bold bg-emerald-600 text-white px-4 py-2.5 rounded-lg hover:bg-emerald-700 transition shadow-sm flex items-center justify-center gap-2">
+                        <i class="fas fa-file-pdf"></i> Cetak Laporan PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- Header Info Sortir -->
+            <div class="px-6 py-4 border-b border-slate-700 flex flex-col md:flex-row justify-between items-start md:items-center bg-slate-900/10 gap-3">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center">
+                        <i class="fas fa-list-ul"></i>
+                    </div>
+                    <h2 class="text-base font-bold text-slate-200">Daftar Pengawasan Operasional</h2>
+                </div>
+                <div id="sortStatus" class="text-xs bg-slate-900 border border-slate-700 text-slate-300 px-3 py-1.5 rounded-full font-medium">
+                    Urutan: Waktu Terbaru
+                </div>
+            </div>
+
+            <!-- Tabel Pengawasan Utama -->
+            <div class="overflow-x-auto min-h-[300px]">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="text-[11px] font-bold uppercase tracking-wider text-slate-400 bg-slate-900/30 border-b border-slate-700 select-none">
+                            <th onclick="toggleSort('timestamp')" class="p-4 pl-6 cursor-pointer hover:bg-slate-700 hover:text-white transition group w-48">
+                                Waktu <span id="sort-icon-timestamp" class="text-indigo-400"><i class="fas fa-sort-down ml-1"></i></span>
+                            </th>
+                            <th onclick="toggleSort('petugas')" class="p-4 cursor-pointer hover:bg-slate-700 hover:text-white transition group w-40">
+                                Pelapor <span id="sort-icon-petugas" class="text-slate-600 group-hover:text-slate-400"><i class="fas fa-sort ml-1"></i></span>
+                            </th>
+                            <th onclick="toggleSort('lokasi')" class="p-4 cursor-pointer hover:bg-slate-700 hover:text-white transition group w-40">
+                                Lokasi Area <span id="sort-icon-lokasi" class="text-slate-600 group-hover:text-slate-400"><i class="fas fa-sort ml-1"></i></span>
+                            </th>
+                            <th onclick="toggleSort('kategori')" class="p-4 cursor-pointer hover:bg-slate-700 hover:text-white transition group w-40">
+                                Kategori <span id="sort-icon-kategori" class="text-slate-600 group-hover:text-slate-400"><i class="fas fa-sort ml-1"></i></span>
+                            </th>
+                            <th class="p-4">Status & Giat</th>
+                            <th class="p-4 text-center pr-6 w-48">Tindakan / Arahan</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dataBody" class="text-sm divide-y divide-slate-700/50">
+                        <!-- Data dikendalikan oleh fungsi renderTable() -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // --- 1. STATE & DATA INITIALIZATION ---
+        // Data Laporan dalam memori lokal
+        let reports = [
+            {
+                id: 'report-1',
+                timestamp: new Date(Date.now() - (3 * 60 * 60 * 1000) - (20 * 60 * 1000)), // Simulasi 3 jam 20 menit lalu
+                petugas: 'Reza Ryansyah',
+                kategori: 'Penertiban',
+                lokasi: 'Blok A - Koridor',
+                statusGiat: 'Selesai',
+                kronologi: 'Teguran persuasif kepada warga yang merokok di koridor dalam lift.',
+                imageBefore: 'https://images.unsplash.com/photo-1621508678070-071a62ebcc04?w=400&q=80',
+                imageAfter: 'https://images.unsplash.com/photo-1584422506456-4b82d3e91124?w=400&q=80',
+                catatanTindakLanjut: 'Warga sudah meninggalkan area dan puntung rokok sudah dibersihkan.',
+                arahan: 'Terima kasih atas tindak cepatnya. Pantau terus area tersebut.'
+            },
+            {
+                id: 'report-2',
+                timestamp: new Date(Date.now() - (1 * 60 * 60 * 1000) - (15 * 60 * 1000)), // Simulasi 1 jam 15 menit lalu
+                petugas: 'Andi Kusuma',
+                kategori: 'Pengawasan',
+                lokasi: 'Blok B - Pos Jaga',
+                statusGiat: 'Selesai',
+                kronologi: 'Serah terima tugas piket siang ke malam terpantau aman dan terkendali. Inventaris lengkap.',
+                imageBefore: '',
+                imageAfter: '',
+                catatanTindakLanjut: '',
+                arahan: ''
+            },
+            {
+                id: 'report-3',
+                timestamp: new Date(Date.now() - (45 * 60 * 1000)), // Simulasi 45 menit lalu
+                petugas: 'Siti Aminah',
+                kategori: 'Pendataan',
+                lokasi: 'Blok C - Lt 2',
+                statusGiat: 'Dalam Proses',
+                kronologi: 'Pemeriksaan identitas kontraktor pengerjaan instalasi pipa air bersih. Dokumen masih diverifikasi.',
+                imageBefore: '',
+                imageAfter: '',
+                catatanTindakLanjut: '',
+                arahan: ''
+            },
+            {
+                id: 'report-4',
+                timestamp: new Date(Date.now() - (5 * 60 * 60 * 1000) - (30 * 60 * 1000)), // Simulasi 5 jam 30 menit lalu
+                petugas: 'Budi Santoso',
+                kategori: 'Pengendalian',
+                lokasi: 'Area Parkir Motor',
+                statusGiat: 'Butuh Eskalasi',
+                kronologi: 'Ditemukan kendaraan roda dua parkir sembarangan menutupi akses hidran. Pemilik belum diketahui.',
+                imageBefore: 'https://images.unsplash.com/photo-1558459654-c430be5b0a44?w=400&q=80',
+                imageAfter: '',
+                catatanTindakLanjut: '',
+                arahan: ''
+            }
+        ];
+
+        let currentUserRole = null; 
+        let currentSort = {
+            key: 'timestamp',
+            direction: 'desc'
+        };
+
+        let filterDates = {
+            status: 'Semua',
+            start: '',
+            end: ''
+        };
+        
+        let currentImageBase64 = null; // Untuk Before
+        let currentImageAfterBase64 = null; // Untuk After
+
+        // --- 2. UTILITY FUNCTIONS ---
+        
+        // Format tanggal untuk tampilan (DD MMM YYYY, HH:mm)
+        function formatDate(date) {
+            const options = { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' };
+            return date.toLocaleDateString('id-ID', options).replace(',', ' -');
+        }
+
+        // Format tanggal untuk CSV (YYYY-MM-DD HH:mm:ss)
+        function formatDateForCSV(date) {
+            const pad = (n) => n.toString().padStart(2, '0');
+            return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+        }
+
+        // Menghitung durasi waktu menggantung
+        function getPendingDuration(dateValue) {
+            const now = new Date();
+            const past = new Date(dateValue);
+            const diffMs = now - past;
+            const diffMins = Math.floor(diffMs / 60000);
+            
+            if (diffMins < 1) return 'Baru saja';
+            if (diffMins < 60) return `${diffMins} menit berjalan`;
+            
+            const diffHours = Math.floor(diffMins / 60);
+            const remMins = diffMins % 60;
+            
+            if (diffHours < 24) {
+                return `${diffHours} jam ${remMins} menit`;
+            }
+            
+            const diffDays = Math.floor(diffHours / 24);
+            return `${diffDays} hari berjalan`;
+        }
+
+        // --- 3. UI/UX COMPONENTS ---
+
+        // NOTIFIKASI TOAST CUSTOM
+        function showToast(message, isSuccess = true) {
+            const toast = document.getElementById('toastMessage');
+            const toastText = document.getElementById('toastText');
+            const toastIcon = document.getElementById('toastIcon');
+
+            toastText.innerText = message;
+            if (isSuccess) {
+                toast.classList.remove('border-red-500');
+                toast.classList.add('border-emerald-500');
+                toastIcon.innerHTML = '<i class="fas fa-check-circle text-emerald-500"></i>';
+            } else {
+                toast.classList.remove('border-emerald-500');
+                toast.classList.add('border-red-500');
+                toastIcon.innerHTML = '<i class="fas fa-exclamation-triangle text-red-500"></i>';
+            }
+
+            toast.classList.remove('translate-y-[-150%]');
+            setTimeout(() => {
+                toast.classList.add('translate-y-[-150%]');
+            }, 3000);
+        }
+
+        // LIGHTBOX ZOOM
+        function zoomImage(src) {
+            if (!src) return;
+            const modal = document.getElementById('lightboxModal');
+            const img = document.getElementById('lightboxImage');
+            img.src = src;
+            modal.classList.remove('hidden');
+        }
+
+        function closeLightbox() {
+            document.getElementById('lightboxModal').classList.add('hidden');
+        }
+
+        // MODAL ARAHAN
+        function openArahanModal(reportId) {
+            document.getElementById('activeReportId').value = reportId;
+            const report = reports.find(r => r.id === reportId);
+            document.getElementById('inputArahan').value = report ? report.arahan : '';
+            
+            const overlay = document.getElementById('modalOverlay');
+            const modal = document.getElementById('modalArahan');
+            const content = document.getElementById('modalContent');
+            
+            overlay.classList.remove('hidden');
+            modal.classList.remove('hidden');
+            
+            // Trigger animation
+            setTimeout(() => {
+                overlay.classList.remove('opacity-0');
+                content.classList.remove('scale-95', 'opacity-0');
+                content.classList.add('scale-100', 'opacity-100');
+            }, 10);
+            
+            document.getElementById('inputArahan').focus();
+        }
+
+        function closeModal() {
+            const overlay = document.getElementById('modalOverlay');
+            const modal = document.getElementById('modalArahan');
+            const content = document.getElementById('modalContent');
+            
+            // Reverse animation
+            overlay.classList.add('opacity-0');
+            content.classList.remove('scale-100', 'opacity-100');
+            content.classList.add('scale-95', 'opacity-0');
+            
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+                modal.classList.add('hidden');
+                document.getElementById('activeReportId').value = '';
+                document.getElementById('inputArahan').value = '';
+            }, 300);
+        }
+
+        function saveArahan() {
+            const reportId = document.getElementById('activeReportId').value;
+            const arahanText = document.getElementById('inputArahan').value.trim();
+            
+            if (reportId) {
+                const reportIndex = reports.findIndex(r => r.id === reportId);
+                if (reportIndex !== -1) {
+                    reports[reportIndex].arahan = arahanText;
+                    closeModal();
+                    showToast('Arahan berhasil disimpan!');
+                    renderTable();
+                }
+            }
+        }
+
+        // --- 4. AUTHENTICATION & NAVIGATION ---
+        
+        // SISTEM AUTENTIKASI LOGIN PASSWORD
+        function handleLogin(event) {
+            event.preventDefault();
+            const role = document.getElementById('loginRole').value;
+            const pass = document.getElementById('loginPassword').value;
+
+            // Validasi kata sandi sederhana
+            if (role === 'petugas' && pass === 'petugas123') {
+                currentUserRole = 'petugas';
+                showToast('Masuk sebagai Petugas Lapangan!');
+                switchToAppView();
+            } else if (role === 'pimpinan' && pass === 'pimpinan123') {
+                currentUserRole = 'pimpinan';
+                showToast('Masuk sebagai Administrator / Pimpinan!');
+                switchToAppView();
+            } else {
+                showToast('Sandi yang Anda ketik salah, coba lagi.', false);
+            }
+        }
+
+        function switchToAppView() {
+            document.getElementById('loginView').classList.add('hidden');
+            document.getElementById('appHeader').classList.remove('hidden');
+            
+            const roleText = currentUserRole === 'petugas' ? 'Petugas Lapangan' : 'Pimpinan / Editor';
+            document.getElementById('userRoleText').innerText = roleText;
+
+            if (currentUserRole === 'petugas') {
+                document.getElementById('petugasView').classList.remove('hidden');
+                document.getElementById('pimpinanView').classList.add('hidden');
+                // Reset form just in case
+                document.getElementById('reportForm').reset();
+                removeUploadedFile();
+                renderPetugasActiveReports();
+            } else {
+                document.getElementById('pimpinanView').classList.remove('hidden');
+                document.getElementById('petugasView').classList.add('hidden');
+                renderTable();
+            }
+        }
+
+        function handleLogout() {
+            currentUserRole = null;
+            document.getElementById('loginPassword').value = '';
+            document.getElementById('appHeader').classList.add('hidden');
+            document.getElementById('petugasView').classList.add('hidden');
+            document.getElementById('pimpinanView').classList.add('hidden');
+            document.getElementById('loginView').classList.remove('hidden');
+            showToast('Anda telah keluar dari sesi SIRA-MA.');
+        }
+
+        // --- 5. PETUGAS VIEW LOGIC (FORM SUBMISSION) ---
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Validate file type
+            if (!file.type.startsWith('image/')) {
+                showToast('Hanya file gambar yang diizinkan.', false);
+                return;
+            }
+            
+            // Validate file size (e.g., max 5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                 showToast('Ukuran gambar terlalu besar (Maks 5MB).', false);
+                 return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                currentImageBase64 = e.target.result;
+                document.getElementById('imagePreview').src = currentImageBase64;
+                document.getElementById('previewContainer').classList.remove('hidden');
+                document.getElementById('dropzone').classList.add('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function removeUploadedFile(event) {
+            if(event) event.stopPropagation(); // Prevent triggering dropzone click
+            document.getElementById('fotoFile').value = '';
+            currentImageBase64 = null;
+            document.getElementById('imagePreview').src = '';
+            document.getElementById('previewContainer').classList.add('hidden');
+            document.getElementById('dropzone').classList.remove('hidden');
+        }
+
+        // Fungsi Upload Foto After (Untuk Tindak Lanjut)
+        function handleFileSelectAfter(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (!file.type.startsWith('image/')) {
+                showToast('Hanya file gambar yang diizinkan.', false);
+                return;
+            }
+            if (file.size > 5 * 1024 * 1024) {
+                 showToast('Ukuran gambar terlalu besar (Maks 5MB).', false);
+                 return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                currentImageAfterBase64 = e.target.result;
+                document.getElementById('imagePreviewAfter').src = currentImageAfterBase64;
+                document.getElementById('previewContainerAfter').classList.remove('hidden');
+                document.getElementById('dropzoneAfter').classList.add('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function removeUploadedFileAfter(event) {
+            if(event) event.stopPropagation();
+            document.getElementById('fotoFileAfter').value = '';
+            currentImageAfterBase64 = null;
+            document.getElementById('imagePreviewAfter').src = '';
+            document.getElementById('previewContainerAfter').classList.add('hidden');
+            document.getElementById('dropzoneAfter').classList.remove('hidden');
+        }
+
+        function handleFormSubmit(event) {
+            event.preventDefault();
+            
+            const petugas = document.getElementById('petugasInput').value.trim();
+            const kategori = document.getElementById('kategoriInput').value;
+            const lokasi = document.getElementById('lokasiInput').value.trim();
+            const statusGiat = document.getElementById('statusGiatInput').value;
+            const kronologi = document.getElementById('kronologiInput').value.trim();
+
+            if (!petugas || !lokasi || !kronologi) {
+                showToast('Mohon lengkapi semua field wajib.', false);
+                return;
+            }
+
+            const newReport = {
+                id: 'report-' + Date.now(),
+                timestamp: new Date(),
+                petugas: petugas,
+                kategori: kategori,
+                lokasi: lokasi,
+                statusGiat: statusGiat,
+                kronologi: kronologi,
+                imageBefore: currentImageBase64 || '',
+                imageAfter: '',
+                catatanTindakLanjut: '',
+                arahan: ''
+            };
+
+            // Tambahkan ke awal array
+            reports.unshift(newReport);
+            
+            // Reset form
+            document.getElementById('reportForm').reset();
+            removeUploadedFile();
+            renderPetugasActiveReports();
+            
+            showToast('Laporan Giat berhasil dikirim!');
+        }
+
+        // --- SISTEM TINDAK LANJUT PETUGAS ---
+        function renderPetugasActiveReports() {
+            const container = document.getElementById('petugasActiveReports');
+            const badge = document.getElementById('badgeActiveReports');
+            container.innerHTML = '';
+
+            // Ambil laporan yang belum "Selesai" (Simulasi filter milik user aktif)
+            const activeReports = reports.filter(r => r.statusGiat !== 'Selesai');
+            badge.innerText = activeReports.length;
+
+            if (activeReports.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-6 text-slate-500 text-xs">
+                        <i class="fas fa-check-circle text-emerald-500/50 text-2xl mb-2"></i><br>
+                        Tidak ada laporan tertunda yang butuh tindak lanjut.
+                    </div>`;
+                return;
+            }
+
+            activeReports.forEach(r => {
+                let statusColor = r.statusGiat === 'Dalam Proses' ? 'text-amber-400 bg-amber-400/10' : 'text-red-400 bg-red-400/10';
+                let durationText = getPendingDuration(r.timestamp);
+                
+                container.innerHTML += `
+                    <div class="bg-slate-900 border border-slate-700 p-3 rounded-xl flex flex-col gap-2 relative">
+                        <div class="flex justify-between items-start">
+                            <span class="text-[10px] font-bold ${statusColor} px-2 py-0.5 rounded uppercase tracking-wider">${r.statusGiat}</span>
+                            <span class="text-[10px] text-slate-400">${formatDate(r.timestamp)}</span>
+                        </div>
+                        <div class="text-sm font-semibold text-slate-200">${r.kategori} - ${r.lokasi}</div>
+                        <p class="text-xs text-slate-400 line-clamp-2">${r.kronologi}</p>
+                        
+                        <div class="flex items-center gap-1.5 mt-1 text-[10px] font-bold text-red-400 bg-red-500/10 w-max px-2.5 py-1 rounded-md border border-red-500/20">
+                            <i class="fas fa-stopwatch animate-pulse"></i> Menggantung: ${durationText}
+                        </div>
+
+                        <button onclick="openTindakLanjutModal('${r.id}')" class="mt-2 w-full bg-slate-800 hover:bg-emerald-600 border border-slate-600 hover:border-emerald-500 text-slate-300 hover:text-white py-1.5 rounded-lg text-xs font-bold transition flex items-center justify-center gap-2">
+                            <i class="fas fa-camera"></i> Update & Foto After
+                        </button>
+                    </div>
+                `;
+            });
+        }
+
+        function openTindakLanjutModal(reportId) {
+            document.getElementById('tlReportId').value = reportId;
+            document.getElementById('tlCatatanInput').value = '';
+            document.getElementById('tlStatusInput').value = 'Selesai'; // Default to finish
+            removeUploadedFileAfter(); // Bersihkan foto sebelumnya
+
+            const overlay = document.getElementById('modalTindakLanjutOverlay');
+            const modal = document.getElementById('modalTindakLanjut');
+            const content = document.getElementById('modalTindakLanjutContent');
+            
+            overlay.classList.remove('hidden');
+            modal.classList.remove('hidden');
+            
+            setTimeout(() => {
+                overlay.classList.remove('opacity-0');
+                content.classList.remove('scale-95', 'opacity-0');
+                content.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+
+        function closeTindakLanjutModal() {
+            const overlay = document.getElementById('modalTindakLanjutOverlay');
+            const modal = document.getElementById('modalTindakLanjut');
+            const content = document.getElementById('modalTindakLanjutContent');
+            
+            overlay.classList.add('opacity-0');
+            content.classList.remove('scale-100', 'opacity-100');
+            content.classList.add('scale-95', 'opacity-0');
+            
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+                modal.classList.add('hidden');
+            }, 300);
+        }
+
+        function saveTindakLanjut() {
+            const reportId = document.getElementById('tlReportId').value;
+            const status = document.getElementById('tlStatusInput').value;
+            const catatan = document.getElementById('tlCatatanInput').value.trim();
+            
+            const reportIndex = reports.findIndex(r => r.id === reportId);
+            if (reportIndex !== -1) {
+                reports[reportIndex].statusGiat = status;
+                reports[reportIndex].catatanTindakLanjut = catatan;
+                if(currentImageAfterBase64) {
+                    reports[reportIndex].imageAfter = currentImageAfterBase64;
+                }
+                
+                closeTindakLanjutModal();
+                showToast('Tindak Lanjut & Foto After Berhasil Disimpan!');
+                renderPetugasActiveReports();
+            }
+        }
+
+
+        // --- 6. PIMPINAN VIEW LOGIC (DASHBOARD & TABLE) ---
+
+        // FILTER TANGGAL DAN STATUS
+        function applyFilters() {
+            filterDates.status = document.getElementById('filterStatusVal').value;
+            filterDates.start = document.getElementById('filterStartDate').value;
+            filterDates.end = document.getElementById('filterEndDate').value;
+            renderTable();
+        }
+
+        function clearDateFilters() {
+            document.getElementById('filterStatusVal').value = 'Semua';
+            document.getElementById('filterStartDate').value = '';
+            document.getElementById('filterEndDate').value = '';
+            filterDates.status = 'Semua';
+            filterDates.start = '';
+            filterDates.end = '';
+            renderTable();
+        }
+
+        // PENGELOLAAN GRAFIK STATS
+        function updateChartAndCounts(filteredList) {
+            let stats = { "Rutin": 0, "Pelanggaran": 0, "Aduan": 0 };
+            
+            filteredList.forEach(report => {
+                const kat = report.kategori;
+                if(kat === "Pekerjaan Rutin" || kat === "Pengawasan" || kat === "Pendataan" || kat === "Pengendalian") stats.Rutin++;
+                else if(kat === "Penertiban" || kat === "Pelanggaran") stats.Pelanggaran++;
+                else stats.Aduan++; // Aduan Warga
+            });
+
+            const total = filteredList.length;
+            
+            // Animate count update
+            const totalEl = document.getElementById('totalCount');
+            const currentTotal = parseInt(totalEl.innerText) || 0;
+            animateValue(totalEl, currentTotal, total, 500);
+
+            Object.keys(stats).forEach(key => {
+                const bar = document.getElementById('bar-' + key);
+                const label = document.getElementById('label-' + key);
+                if(bar && label) {
+                    const totalReports = total || 1;
+                    // Minimum height 10px so it's visible, max 60px
+                    const calculatedHeight = total === 0 ? 0 : (stats[key] / totalReports) * 50 + 10;
+                    bar.style.height = (stats[key] === 0 ? 0 : calculatedHeight) + "px"; 
+                    label.innerText = stats[key];
+                }
+            });
+        }
+        
+        // Simple number animation
+        function animateValue(obj, start, end, duration) {
+            let startTimestamp = null;
+            const step = (timestamp) => {
+                if (!startTimestamp) startTimestamp = timestamp;
+                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                obj.innerHTML = Math.floor(progress * (end - start) + start);
+                if (progress < 1) {
+                    window.requestAnimationFrame(step);
+                } else {
+                    obj.innerHTML = end; // Ensure exact final value
+                }
+            };
+            window.requestAnimationFrame(step);
+        }
+
+        // SORTING LOGIC
+        function toggleSort(key) {
+            if (currentSort.key === key) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.key = key;
+                currentSort.direction = 'asc';
+                if(key === 'timestamp') currentSort.direction = 'desc'; // Default new to old for time
+            }
+            
+            updateSortUI();
+            renderTable();
+        }
+
+        function updateSortUI() {
+            // Reset all icons
+            const keys = ['timestamp', 'petugas', 'lokasi', 'kategori'];
+            keys.forEach(k => {
+                const iconSpan = document.getElementById(`sort-icon-${k}`);
+                if(iconSpan) {
+                    iconSpan.className = "text-slate-600 group-hover:text-slate-400";
+                    iconSpan.innerHTML = '<i class="fas fa-sort ml-1"></i>';
+                }
+            });
+
+            // Update active icon
+            const activeIconSpan = document.getElementById(`sort-icon-${currentSort.key}`);
+            if(activeIconSpan) {
+                activeIconSpan.className = "text-indigo-400";
+                activeIconSpan.innerHTML = currentSort.direction === 'asc' ? 
+                    '<i class="fas fa-sort-up ml-1"></i>' : 
+                    '<i class="fas fa-sort-down ml-1"></i>';
+            }
+
+            // Update status text
+            const sortNames = {
+                timestamp: 'Waktu', petugas: 'Pelapor', lokasi: 'Lokasi', kategori: 'Kategori'
+            };
+            const dirName = currentSort.direction === 'asc' ? 'Menaik' : 'Menurun';
+            let statusText = `Urutan: ${sortNames[currentSort.key]} (${dirName})`;
+            if (currentSort.key === 'timestamp' && currentSort.direction === 'desc') statusText = 'Urutan: Waktu Terbaru';
+            document.getElementById('sortStatus').innerText = statusText;
+        }
+
+        // RENDERING TABEL LOG 
+        function renderTable() {
+            let filteredReports = [...reports];
+
+            // 0. Filter Status Lapangan
+            if (filterDates.status !== 'Semua') {
+                filteredReports = filteredReports.filter(r => r.statusGiat === filterDates.status);
+            }
+
+            // 1. Filter Rentang Waktu
+            if (filterDates.start) {
+                const startDate = new Date(filterDates.start);
+                startDate.setHours(0,0,0,0);
+                filteredReports = filteredReports.filter(r => r.timestamp >= startDate);
+            }
+            if (filterDates.end) {
+                const endDate = new Date(filterDates.end);
+                endDate.setHours(23,59,59,999);
+                filteredReports = filteredReports.filter(r => r.timestamp <= endDate);
+            }
+
+            // 2. Logika Sortir/Urutkan Dinamis
+            filteredReports.sort((a, b) => {
+                let valA = a[currentSort.key];
+                let valB = b[currentSort.key];
+
+                if (currentSort.key === 'timestamp') {
+                    return currentSort.direction === 'asc' ? valA - valB : valB - valA;
+                } else {
+                    return currentSort.direction === 'asc' 
+                        ? valA.localeCompare(valB) 
+                        : valB.localeCompare(valA);
+                }
+            });
+
+            const tbody = document.getElementById('dataBody');
+            tbody.innerHTML = '';
+
+            if (filteredReports.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="p-8 text-center text-slate-500 italic bg-slate-800/20">
+                            <div class="flex flex-col items-center justify-center gap-2">
+                                <i class="fas fa-inbox text-3xl text-slate-600"></i>
+                                <span>Tidak ditemukan laporan yang sesuai kriteria filter.</span>
+                            </div>
+                        </td>
+                    </tr>`;
+                updateChartAndCounts([]);
+                return;
+            }
+
+            filteredReports.forEach((report, index) => {
+                // Tema Warna Lencana Kategori
+                let badgeKat = "bg-slate-700/50 text-slate-300 border-slate-600";
+                let iconKat = "fa-tag";
+                
+                if (report.kategori === "Penertiban" || report.kategori === "Pelanggaran") {
+                    badgeKat = "bg-red-500/10 text-red-400 border-red-500/20";
+                    iconKat = report.kategori === "Pelanggaran" ? "fa-exclamation-circle" : "fa-hand-paper";
+                } else if (report.kategori === "Pendataan" || report.kategori === "Pekerjaan Rutin") {
+                    badgeKat = "bg-blue-500/10 text-blue-400 border-blue-500/20";
+                    iconKat = report.kategori === "Pekerjaan Rutin" ? "fa-tasks" : "fa-clipboard-list";
+                } else if (report.kategori === "Pengawasan") {
+                    badgeKat = "bg-indigo-500/10 text-indigo-400 border-indigo-500/20";
+                    iconKat = "fa-eye";
+                } else if (report.kategori === "Pengendalian") {
+                    badgeKat = "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
+                    iconKat = "fa-tools";
+                } else if (report.kategori === "Aduan Warga") {
+                    badgeKat = "bg-amber-500/10 text-amber-400 border-amber-500/20";
+                    iconKat = "fa-bullhorn";
+                }
+
+                // Ikon Status & Durasi Menggantung
+                let iconStatus = '<i class="fas fa-clock text-amber-500 mr-1"></i>';
+                let textStatusColor = 'text-amber-400';
+                let durationBadge = `<div class="mt-1 text-[9px] font-bold text-red-400 bg-red-500/10 inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-red-500/20"><i class="fas fa-stopwatch animate-pulse"></i> Menggantung: ${getPendingDuration(report.timestamp)}</div>`;
+
+                if (report.statusGiat === 'Selesai') {
+                    iconStatus = '<i class="fas fa-check-circle text-emerald-500 mr-1"></i>';
+                    textStatusColor = 'text-emerald-400';
+                    durationBadge = ''; // Sembunyikan durasi jika sudah selesai
+                } else if (report.statusGiat === 'Butuh Eskalasi') {
+                    iconStatus = '<i class="fas fa-exclamation-triangle text-red-500 mr-1"></i>';
+                    textStatusColor = 'text-red-400';
+                }
+
+                // Tampilan Foto (Before & After)
+                const imgBeforeHTML = report.imageBefore 
+                    ? `<img src="${report.imageBefore}" onclick="zoomImage(this.src)" alt="Before" class="w-12 h-12 rounded-lg object-cover cursor-zoom-in border border-slate-700 hover:scale-105 hover:border-indigo-500 transition shadow-sm" title="Before: Temuan Awal">`
+                    : `<div class="w-12 h-12 rounded-lg bg-slate-900 border border-slate-700 flex flex-col items-center justify-center text-slate-600 shadow-sm" title="No Before Image"><i class="fas fa-image text-xs mb-1"></i><span class="text-[8px] uppercase tracking-tighter">Bfr</span></div>`;
+                
+                const imgAfterHTML = report.imageAfter
+                    ? `<img src="${report.imageAfter}" onclick="zoomImage(this.src)" alt="After" class="w-12 h-12 rounded-lg object-cover cursor-zoom-in border border-emerald-700 hover:scale-105 hover:border-emerald-500 transition shadow-sm" title="After: Tindak Lanjut">`
+                    : `<div class="w-12 h-12 rounded-lg bg-slate-900/50 border border-slate-700/50 border-dashed flex flex-col items-center justify-center text-slate-600 shadow-sm opacity-50" title="Belum ada Foto After"><i class="fas fa-camera text-xs mb-1"></i><span class="text-[8px] uppercase tracking-tighter">Aftr</span></div>`;
+
+                // Catatan Tindak Lanjut Petugas
+                let catatanHTML = '';
+                if (report.catatanTindakLanjut) {
+                    catatanHTML = `<div class="mt-2 pt-2 border-t border-slate-700/50"><p class="text-[10px] text-emerald-400 font-medium leading-relaxed"><i class="fas fa-check-double mr-1"></i> <span class="text-slate-300">${report.catatanTindakLanjut}</span></p></div>`;
+                }
+
+                // Tampilan Arahan Pimpinan
+                let actionHTML = '';
+                if (report.arahan) {
+                    actionHTML = `
+                        <div class="inline-flex flex-col items-start bg-indigo-500/10 p-2.5 rounded-lg border border-indigo-500/30 text-left w-full shadow-sm">
+                            <span class="text-[9px] uppercase tracking-wider font-bold text-indigo-400 mb-1 flex items-center gap-1"><i class="fas fa-reply"></i> Arahan Pimpinan:</span>
+                            <span class="text-xs text-slate-200 line-clamp-2" title="${report.arahan}">${report.arahan}</span>
+                            <button onclick="openArahanModal('${report.id}')" class="text-[10px] text-indigo-400 hover:text-white mt-1.5 underline decoration-indigo-500/50 underline-offset-2 transition">Edit Arahan</button>
+                        </div>
+                    `;
+                } else {
+                    actionHTML = `
+                        <button onclick="openArahanModal('${report.id}')" class="w-full bg-slate-800 hover:bg-indigo-600 border border-slate-600 hover:border-indigo-500 text-slate-300 hover:text-white py-1.5 px-3 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-2">
+                            <i class="fas fa-pen-alt"></i> Beri Arahan
+                        </button>
+                    `;
+                }
+
+                // Row Animation Delay (for visual effect on load/filter)
+                const animDelay = index * 50;
+
+                const tr = document.createElement('tr');
+                tr.className = `hover:bg-slate-800/50 transition-colors animate-fade-in group`;
+                tr.style.animationDelay = `${animDelay}ms`;
+                tr.style.animationFillMode = 'both';
+                
+                tr.innerHTML = `
+                    <td class="p-4 pl-6 align-top">
+                        <div class="flex flex-col">
+                            <span class="font-bold text-slate-200">${formatDate(report.timestamp).split(' - ')[0]}</span>
+                            <span class="text-xs text-slate-400"><i class="far fa-clock mr-1"></i>${formatDate(report.timestamp).split(' - ')[1]}</span>
+                        </div>
+                    </td>
+                    <td class="p-4 align-top">
+                        <div class="flex items-center gap-2">
+                            <div class="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-[10px] text-slate-300 font-bold uppercase">
+                                ${report.petugas.substring(0,2)}
+                            </div>
+                            <span class="font-medium text-slate-200">${report.petugas}</span>
+                        </div>
+                    </td>
+                    <td class="p-4 align-top text-slate-300 font-medium">
+                        <div class="flex items-start gap-2">
+                            <i class="fas fa-map-marker-alt text-slate-500 mt-0.5"></i>
+                            <span>${report.lokasi}</span>
+                        </div>
+                    </td>
+                    <td class="p-4 align-top">
+                        <span class="px-2.5 py-1 border rounded-md text-xs font-bold whitespace-nowrap flex items-center inline-flex gap-1.5 w-max ${badgeKat}">
+                            <i class="fas ${iconKat}"></i> ${report.kategori}
+                        </span>
+                    </td>
+                    <td class="p-4 align-top min-w-[300px]">
+                        <div class="flex items-start gap-3">
+                            <div class="flex-shrink-0 mt-0.5 flex flex-col gap-1.5">
+                                ${imgBeforeHTML}
+                                ${imgAfterHTML}
+                            </div>
+                            <div class="flex flex-col w-full">
+                                <div>
+                                    <span class="text-xs font-bold ${textStatusColor} flex items-center uppercase tracking-wide">${iconStatus} ${report.statusGiat}</span>
+                                    ${durationBadge}
+                                </div>
+                                <p class="text-xs text-slate-300 leading-relaxed mt-1.5">${report.kronologi}</p>
+                                ${catatanHTML}
+                            </div>
+                        </div>
+                    </td>
+                    <td class="p-4 pr-6 align-top text-center">
+                        ${actionHTML}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            updateChartAndCounts(filteredReports);
+        }
+
+        // --- 7. EXPORT DATA ---
+        function exportCSVWithDateFilter() {
+            let filteredReports = [...reports];
+
+            if (filterDates.status !== 'Semua') {
+                filteredReports = filteredReports.filter(r => r.statusGiat === filterDates.status);
+            }
+            if (filterDates.start) {
+                const startDate = new Date(filterDates.start);
+                startDate.setHours(0,0,0,0);
+                filteredReports = filteredReports.filter(r => r.timestamp >= startDate);
+            }
+            if (filterDates.end) {
+                const endDate = new Date(filterDates.end);
+                endDate.setHours(23,59,59,999);
+                filteredReports = filteredReports.filter(r => r.timestamp <= endDate);
+            }
+
+            if (filteredReports.length === 0) {
+                showToast("Tidak ada data untuk diekspor pada rentang ini.", false);
+                return;
+            }
+
+            // Create CSV Headers
+            const headers = ['Waktu', 'Petugas', 'Kategori', 'Lokasi', 'Status', 'Kronologi', 'Catatan Tindak Lanjut', 'Arahan Pimpinan'];
+            
+            // Format rows
+            const rows = filteredReports.map(r => {
+                // Escape quotes and commas in text fields
+                const escapeStr = (str) => `"${(str || '').replace(/"/g, '""')}"`;
+                return [
+                    formatDateForCSV(r.timestamp),
+                    escapeStr(r.petugas),
+                    escapeStr(r.kategori),
+                    escapeStr(r.lokasi),
+                    escapeStr(r.statusGiat),
+                    escapeStr(r.kronologi),
+                    escapeStr(r.catatanTindakLanjut),
+                    escapeStr(r.arahan)
+                ].join(',');
+            });
+
+            const csvContent = [headers.join(','), ...rows].join('\n');
+            
+            // Create Blob and Download
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            
+            const dateStr = new Date().toISOString().split('T')[0];
+            link.setAttribute("href", url);
+            link.setAttribute("download", `Rekap_Giat_Keamanan_${dateStr}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showToast("File CSV berhasil diunduh.");
+        }
+
+        // FUNGSI BARU: EXPORT KE PDF
+        function exportPDFWithDateFilter() {
+            let filteredReports = [...reports];
+
+            // Terapkan filter
+            if (filterDates.status !== 'Semua') {
+                filteredReports = filteredReports.filter(r => r.statusGiat === filterDates.status);
+            }
+            if (filterDates.start) {
+                const startDate = new Date(filterDates.start);
+                startDate.setHours(0,0,0,0);
+                filteredReports = filteredReports.filter(r => r.timestamp >= startDate);
+            }
+            if (filterDates.end) {
+                const endDate = new Date(filterDates.end);
+                endDate.setHours(23,59,59,999);
+                filteredReports = filteredReports.filter(r => r.timestamp <= endDate);
+            }
+
+            if (filteredReports.length === 0) {
+                showToast("Tidak ada data untuk diekspor pada rentang ini.", false);
+                return;
+            }
+
+            // Notifikasi proses
+            showToast("Menyiapkan dokumen PDF, mohon tunggu...", true);
+
+            // Buat elemen penampung sementara (Layout Cetak)
+            const container = document.createElement('div');
+            container.style.padding = '30px';
+            container.style.fontFamily = 'Arial, sans-serif';
+            container.style.color = '#333';
+            container.style.background = '#fff';
+
+            // Header Dokumen
+            let html = `
+                <div style="text-align: center; margin-bottom: 25px; border-bottom: 2px solid #1e293b; padding-bottom: 15px;">
+                    <h1 style="margin: 0; font-size: 22px; color: #1e293b; text-transform: uppercase;">Laporan Petugas Keamanan</h1>
+                    <p style="margin: 5px 0 0; font-size: 14px; color: #475569;">Rusunawa Muara Angke</p>
+                    <p style="margin: 5px 0 0; font-size: 12px; color: #64748b;">Dicetak pada: ${formatDate(new Date())}</p>
+                </div>
+                <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+                    <thead>
+                        <tr style="background-color: #f8fafc; text-align: left;">
+                            <th style="border: 1px solid #cbd5e1; padding: 10px;">WAKTU</th>
+                            <th style="border: 1px solid #cbd5e1; padding: 10px;">PELAPOR</th>
+                            <th style="border: 1px solid #cbd5e1; padding: 10px;">KATEGORI & LOKASI</th>
+                            <th style="border: 1px solid #cbd5e1; padding: 10px; width: 25%;">KRONOLOGI & STATUS</th>
+                            <th style="border: 1px solid #cbd5e1; padding: 10px; width: 20%;">ARAHAN PIMPINAN</th>
+                            <th style="border: 1px solid #cbd5e1; padding: 10px; width: 100px; text-align: center;">LAMPIRAN</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            // Isi Baris Tabel
+            filteredReports.forEach(r => {
+                const imgBeforeContent = r.imageBefore 
+                    ? `<img src="${r.imageBefore}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px; border: 1px solid #e2e8f0; margin-bottom: 4px;" crossorigin="anonymous">`
+                    : `<div style="width: 50px; height: 50px; background: #f1f5f9; display: flex; align-items: center; justify-content: center; font-size: 8px; color: #94a3b8; text-align: center; border-radius: 4px; border: 1px dashed #cbd5e1; margin-bottom: 4px;">Before</div>`;
+                
+                const imgAfterContent = r.imageAfter 
+                    ? `<img src="${r.imageAfter}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px; border: 1px solid #10b981;" crossorigin="anonymous">`
+                    : `<div style="width: 50px; height: 50px; background: #f1f5f9; display: flex; align-items: center; justify-content: center; font-size: 8px; color: #94a3b8; text-align: center; border-radius: 4px; border: 1px dashed #cbd5e1;">After</div>`;
+
+                let statusColor = '#f59e0b';
+                let durationTextHtml = `<div style="color: #ef4444; font-size: 8px; margin-top: 3px; font-weight: bold;">⏱ Menggantung: ${getPendingDuration(r.timestamp)}</div>`;
+
+                if (r.statusGiat === 'Selesai') {
+                    statusColor = '#10b981';
+                    durationTextHtml = ''; // Sembunyikan jika selesai
+                } else if (r.statusGiat === 'Butuh Eskalasi') {
+                    statusColor = '#ef4444';
+                }
+
+                let notesHtml = `<span style="margin-top: 5px; display: inline-block; line-height: 1.4;">${r.kronologi}</span>`;
+                if(r.catatanTindakLanjut) {
+                    notesHtml += `<div style="margin-top: 6px; padding-top: 4px; border-top: 1px solid #e2e8f0; font-size: 9px; color: #10b981;"><strong>Tindak Lanjut:</strong> ${r.catatanTindakLanjut}</div>`;
+                }
+
+                html += `
+                    <tr>
+                        <td style="border: 1px solid #cbd5e1; padding: 10px; vertical-align: top;">${formatDate(r.timestamp).replace(' - ', '<br>')}</td>
+                        <td style="border: 1px solid #cbd5e1; padding: 10px; vertical-align: top; font-weight: bold;">${r.petugas}</td>
+                        <td style="border: 1px solid #cbd5e1; padding: 10px; vertical-align: top;">
+                            <span style="display: inline-block; padding: 3px 6px; background: #e2e8f0; border-radius: 4px; font-size: 10px; margin-bottom: 5px; font-weight: bold;">${r.kategori}</span><br>
+                            ${r.lokasi}
+                        </td>
+                        <td style="border: 1px solid #cbd5e1; padding: 10px; vertical-align: top;">
+                            <strong style="color: ${statusColor}; font-size: 10px; text-transform: uppercase;">[${r.statusGiat}]</strong><br>
+                            ${durationTextHtml}
+                            ${notesHtml}
+                        </td>
+                        <td style="border: 1px solid #cbd5e1; padding: 10px; vertical-align: top; color: #334155;">${r.arahan || '<em>- Belum ada arahan -</em>'}</td>
+                        <td style="border: 1px solid #cbd5e1; padding: 10px; text-align: center; vertical-align: top;">
+                            <div style="display: flex; flex-direction: column; align-items: center;">
+                                ${imgBeforeContent}
+                                ${imgAfterContent}
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                    </tbody>
+                </table>
+            `;
+            container.innerHTML = html;
+
+            // Opsi & Konfigurasi Ekspor PDF
+            const opt = {
+                margin:       10,
+                filename:     `Laporan_Keamanan_${new Date().toISOString().split('T')[0]}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
+            };
+
+            // Menghasilkan dan mendownload PDF
+            html2pdf().set(opt).from(container).save().then(() => {
+                showToast("File PDF siap diunduh dan digunakan!");
+            }).catch(err => {
+                showToast("Gagal membuat PDF. Coba lagi.", false);
+                console.error(err);
+            });
+        }
+
+        // Add simple CSS animation for table rows
+        const style = document.createElement('style');
+        style.innerHTML = `
+            @keyframes fadeIn {
+                from { opacity: 0; transform: translateY(5px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+            .animate-fade-in {
+                animation: fadeIn 0.3s ease-out forwards;
+            }
+        `;
+        document.head.appendChild(style);
+
+    </script>
+</body>
+</html>
